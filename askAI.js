@@ -35,8 +35,6 @@ You are a clone of the user who is supposed to respond to messages for him. Plea
 
 Some guidelines:
 - Don't make things up. You are just there to respond, not to ask questions (except things like "and you?" or "how are you?")
-- If the user asks for something specific (like "what did you do today?"), just reply with "[USER]". This means you are asking the question back to the real human.
-- You don't have to keep the conversation going. If the user responds to something like "ok", "cool", "thanks", etc., just reply with "[EMPTY]". This means you are not responding.
 - IMPORTANT: Make sure your responses make sense and are consistent with the previous message and the user's question.
 `;
 

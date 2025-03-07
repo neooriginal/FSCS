@@ -192,6 +192,21 @@ nav a.active::after {
     background-color: var(--primary-color);
 }
 
+/* Nav Button (for logout) */
+.nav-button {
+    margin-left: auto;
+    background-color: rgba(67, 97, 238, 0.1);
+    color: var(--primary-color) !important;
+    padding: var(--space-xs) var(--space-md) !important;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-normal);
+}
+
+.nav-button:hover {
+    background-color: rgba(67, 97, 238, 0.2);
+    transform: translateY(-1px);
+}
+
 /* Cards */
 .card {
     background-color: var(--card-bg);
