@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with Models - AI Fine-Tuning System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="apiKeyHandler.js"></script>
+</head>
+
+<body>
+    <script>
+        // Check for API key before allowing any content to be accessed
+        document.addEventListener('DOMContentLoaded', function () {
+            // Hide all content initially
+            document.querySelector('.container').style.display = 'none';
+
+            // Check for API key and show modal if needed
+            if (checkApiKeyAndShowModal()) {
+                // If API key exists, show content
+                document.querySelector('.container').style.display = 'block';
+            }
+
+            // Listen for API key provided event
+            document.addEventListener('apiKeyProvided', function () {
+                document.querySelector('.container').style.display = 'block';
+            });
+        });
+    </script>
+
+    <header>
+        <h1>FSCS</h1>
+        <p class="subtitle">Full-Self-Cloning-System</p>
+    </header>
+
+    <nav>
+        <a href="/">Home</a>
+        <a href="/train">Fine-Tuning</a>
+        <a href="/chat" class="active">Chat with Models</a>
+        <a href="/formatting-guide">Formatting Guide</a>
+        <a href="/privacy-policy">Privacy Policy</a>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <h2 class="section-title">Chat with AI Models</h2>
+            <div id="userBadge" class="user-badge" style="display: none;">User ID: <span id="userId"></span></div>
+
+            <div id="modelSelectionContainer" class="card">
+                <div class="mb-2">
+                    <label for="modelSelect">
+                        <i class="fas fa-robot"></i> Select Model:
+                    </label>
+                    <select id="modelSelect">
+                        <option value="" disabled selected>Select a model</option>
+                    </select>
+                </div>
+                <div id="modelSelectStatus" class="status hidden"></div>
+            </div>
+
+            <div id="chatInterface" class="card chat-container" style="display: none;">
+                <div id="messages" class="messages"></div>
+
+                <div class="chat-input">
+                    <textarea id="userInput" placeholder="Type your message here..." rows="1"></textarea>
+                    <button id="sendButton">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="noChatInterface" class="card">
+                <div class="text-center mt-2 mb-2">
+                    <i class="fas fa-comment-slash" style="font-size: 3rem; color: var(--text-color-light);"></i>
+                    <p class="mt-2">Please select a model to start chatting.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="/privacy-policy">Privacy Policy</a>
+                <a href="/formatting-guide">Formatting Guide</a>
+            </div>
+            <div class="footer-credits">
+                <p>FSCS (Full-Self-Cloning-System) &copy; 2025</p>
+                <p>Created by <a href="https://github.com/Neotastisch" target="_blank">Neotastisch</a></p>
+                <p><a href="https://github.com/Neotastisch/FSCS" target="_blank">View on GitHub</a></p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // DOM Elements
+        const modelSelect = document.getElementById('modelSelect');
+        const modelSelectStatus = document.getElementById('modelSelectStatus');
+        const chatInterface = document.getElementById('chatInterface');
+        const noChatInterface = document.getElementById('noChatInterface');
+        const messagesContainer = document.getElementById('messages');
+        const userInput = document.getElementById('userInput');
+        const sendButton = document.getElementById('sendButton');
+
+        // Variables
+        let selectedModel = '';
+        let chatHistory = {};
+        let errorShown = false; // Track if an error modal is already shown
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', loadAvailableModels);
+
+        // Add common error handling function to the page
+        async function handleApiError(error, defaultMessage = 'An error occurred') {
+            console.error(error);
+
+            if (error.message && error.message.includes('API key') && !errorShown) {
+                errorShown = true;
+                showApiKeyError('Your API key appears to be invalid or has expired. Please enter a valid OpenAI API key.');
+                return true; // Error was handled
+            }
+
+            return false; // Error was not handled specifically
+        }
+
+        // Event Listeners
+        modelSelect.addEventListener('change', handleModelSelect);
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Auto-resize textarea as user types
+        userInput.addEventListener('input', function () {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+
+        // Load Available Models
+        async function loadAvailableModels() {
+            try {
+                showStatus('loading', 'Loading available models...');
+
+                // Try to fetch fine-tuned models
+                try {
+                    // Add API key to the request
+                    const requestOptions = addApiKeyToRequest();
+                    const response = await fetch('/fine-tuning/models', requestOptions);
+
+                    // Use the new error handling function
+                    await handleApiResponse(response);
+
+                    const models = await response.json();
+
+                    // Display user identifier if available
+                    if (models.userId) {
+                        document.getElementById('userId').textContent = models.userId;
+                        document.getElementById('userBadge').style.display = 'block';
+                    }
+
+                    // Add separator and fine-tuned models if any exist
+                    if (models && models.length > 0) {
+                        const separator = document.createElement('option');
+                        separator.disabled = true;
+                        separator.textContent = '──────────';
+                        modelSelect.appendChild(separator);
+
+                        // Add fine-tuned models
+                        for (const model of models) {
+                            const option = document.createElement('option');
+                            option.value = model.id;
+                            option.textContent = model.id + ' (Fine-tuned)';
+                            modelSelect.appendChild(option);
+                        }
+                    }
+                } catch (modelError) {
+                    console.error('Error fetching fine-tuned models:', modelError);
+                    if (modelError.message && modelError.message.includes('API key')) {
+                        showApiKeyError('Your API key appears to be invalid. Please enter a valid OpenAI API key.');
+                    }
+                    // Continue with default models only
+                }
+
+                showStatus('success', 'Models loaded successfully');
+            } catch (error) {
+                showStatus('error', `Error loading models: ${error.message}`);
+            }
+        }
+
+        // Handle Model Selection
+        function handleModelSelect() {
+            selectedModel = modelSelect.value;
+
+            if (!selectedModel) {
+                chatInterface.style.display = 'none';
+                noChatInterface.style.display = 'block';
+                return;
+            }
+
+            // Initialize chat history for this model if it doesn't exist
+            if (!chatHistory[selectedModel]) {
+                chatHistory[selectedModel] = [];
+            }
+
+            // Show chat interface and hide the message
+            chatInterface.style.display = 'flex';
+            noChatInterface.style.display = 'none';
+
+            // Render existing messages for this model
+            renderMessages();
+
+            // Focus on input
+            userInput.focus();
+        }
+
+        // Send Message
+        async function sendMessage() {
+            const message = userInput.value.trim();
+
+            if (!message || !selectedModel) return;
+
+            // Disable input and button while sending
+            userInput.disabled = true;
+            sendButton.disabled = true;
+
+            // Add user message to chat
+            addMessage('user', message);
+
+            // Clear input
+            userInput.value = '';
+            userInput.style.height = 'auto';
+
+            try {
+                // Add temporary AI message with loading indicator
+                const loadingMsgId = Date.now().toString();
+                addMessage('assistant', '<div class="loading"></div>', loadingMsgId);
+
+                // Add API key to the request
+                const requestOptions = addApiKeyToRequest({
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: selectedModel,
+                        userMessage: message
+                    })
+                });
+
+                const response = await fetch('/fine-tuning/askAI', requestOptions);
+
+                // Use the new error handling function
+                await handleApiResponse(response);
+
+                const responseData = await response.json();
+
+                // Update user ID display if available
+                if (responseData.userId) {
+                    document.getElementById('userId').textContent = responseData.userId;
+                    document.getElementById('userBadge').style.display = 'block';
+                }
+
+                // Replace loading message with actual response
+                replaceMessage(loadingMsgId, 'assistant', responseData.response);
+
+            } catch (error) {
+                console.error('Error sending message:', error);
+
+                // Check if it's an API key error
+                if (error.message && error.message.includes('API key')) {
+                    // Show API key error and prompt for new key
+                    showApiKeyError('Your API key appears to be invalid. Please enter a valid OpenAI API key.');
+                } else {
+                    // Show general error status
+                    showStatus('error', `Error: ${error.message}`);
+
+                    // Add error message to chat
+                    const errorMsg = document.createElement('div');
+                    errorMsg.className = 'message error-message';
+                    errorMsg.textContent = `Error: ${error.message}`;
+                    messagesContainer.appendChild(errorMsg);
+                }
+
+                // Remove loading message if there was an error
+                document.getElementById(loadingMsgId)?.remove();
+            } finally {
+                // Re-enable input and button
+                userInput.disabled = false;
+                sendButton.disabled = false;
+                userInput.focus();
+            }
+        }
+
+        // Add Message to Chat
+        function addMessage(role, content, id = null) {
+            // Create message element
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${role}-message`;
+            if (id) messageElement.id = id;
+            messageElement.innerHTML = content;
+
+            // Add message to DOM
+            messagesContainer.appendChild(messageElement);
+
+            // Store in history if not a loading message
+            if (!content.includes('loading')) {
+                if (!chatHistory[selectedModel]) {
+                    chatHistory[selectedModel] = [];
+                }
+                chatHistory[selectedModel].push({ role, content });
+            }
+
+            // Scroll to bottom
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Replace Message (for updating loading message)
+        function replaceMessage(id, role, content) {
+            const messageElement = document.getElementById(id);
+            if (messageElement) {
+                messageElement.innerHTML = content;
+
+                // Store in history
+                if (!chatHistory[selectedModel]) {
+                    chatHistory[selectedModel] = [];
+                }
+                chatHistory[selectedModel].push({ role, content });
+            }
+        }
+
+        // Render Messages from History
+        function renderMessages() {
+            messagesContainer.innerHTML = '';
+
+            if (!chatHistory[selectedModel] || chatHistory[selectedModel].length === 0) {
+                return;
+            }
+
+            for (const message of chatHistory[selectedModel]) {
+                const messageElement = document.createElement('div');
+                messageElement.className = `message ${message.role}-message`;
+                messageElement.innerHTML = message.content;
+                messagesContainer.appendChild(messageElement);
+            }
+
+            // Scroll to bottom
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Show Status Message
+        function showStatus(type, message) {
+            if (type === 'loading') {
+                modelSelectStatus.className = 'status';
+                modelSelectStatus.innerHTML = `<div class="loading"></div> ${message}`;
+            } else {
+                modelSelectStatus.className = `status ${type}`;
+                modelSelectStatus.innerHTML = message;
+
+                // Hide status after a few seconds for success messages
+                if (type === 'success') {
+                    setTimeout(() => {
+                        modelSelectStatus.className = 'status hidden';
+                    }, 3000);
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

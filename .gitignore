@@ -1,0 +1,7 @@
+node_modules
+inputData
+.env
+package-lock.json
+database.sqlite
+.env.neo
+statistics

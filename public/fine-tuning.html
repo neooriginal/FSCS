@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fine-Tuning - AI Fine-Tuning System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="apiKeyHandler.js"></script>
+</head>
+
+<body>
+    <script>
+        // Check for API key only (privacy popup removed)
+        document.addEventListener('DOMContentLoaded', function () {
+            // Hide all content initially
+            document.querySelector('.container').style.display = 'none';
+
+            // Set privacy as agreed automatically
+            localStorage.setItem('fscs_privacy_agreed', 'true');
+
+            // Check API key
+            if (checkApiKeyAndShowModal()) {
+                // If API key exists, show content
+                document.querySelector('.container').style.display = 'block';
+            }
+
+            // Listen for API key provided event
+            document.addEventListener('apiKeyProvided', function () {
+                document.querySelector('.container').style.display = 'block';
+            });
+        });
+    </script>
+
+    <header>
+        <h1>FSCS</h1>
+        <p class="subtitle">Full-Self-Cloning-System</p>
+    </header>
+
+    <nav>
+        <a href="/">Home</a>
+        <a href="/train" class="active">Fine-Tuning</a>
+        <a href="/chat">Chat with Models</a>
+        <a href="/formatting-guide">Formatting Guide</a>
+        <a href="/privacy-policy">Privacy Policy</a>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <h2 class="section-title">Fine-Tune Your AI Model</h2>
+            <div id="userBadge" class="user-badge" style="display: none;">
+                User ID: <span id="userId"></span>
+                <button id="deleteUserDataBtn" class="small-button danger">
+                    <i class="fas fa-trash-alt"></i> Delete My Data
+                </button>
+            </div>
+
+
+            <label style="color: red;">
+                <i class="fas fa-info-circle"></i>
+                When using this service, you agree to the <a href="/privacy-policy" target="_blank">Privacy Policy</a>.
+            </label>
+
+            <!-- Step 1: File Upload Section -->
+            <div class="card">
+                <h3>
+                    <i class="fas fa-file-upload"></i>
+                    <span class="ml-2">Step 1: Upload or Select Files</span>
+                </h3>
+                <p>Upload conversation files or select from existing files in the system.</p>
+
+                <div class="file-upload" id="dropArea">
+                    <i class="fas fa-cloud-upload-alt" style="font-size: 2.5rem; color: var(--text-color-light);"></i>
+                    <p class="mt-2">Drag and drop files here, or click to select files</p>
+                    <input type="file" id="fileInput" multiple style="display: none;">
+                </div>
+
+                <div id="uploadStatusContainer" class="status hidden"></div>
+
+                <h4 class="mt-3">
+                    <i class="fas fa-folder-open"></i>
+                    <span class="ml-2">Available Files:</span>
+                </h4>
+                <label>
+                    <i class="fas fa-info-circle"></i>
+                    The Clone Name is the name you want to clone. Put it in the box in an exact, case-sensitive way
+                    </a>.
+                </label>
+                <div id="fileList" class="file-list">
+                    <div class="loading" id="fileListLoading"></div>
+                </div>
+            </div>
+
+            <!-- Step 2: Configure Fine-Tuning Section -->
+            <div class="card">
+                <h3>
+                    <i class="fas fa-cogs"></i>
+                    <span class="ml-2">Step 2: Configure Fine-Tuning</span>
+                </h3>
+                <p>Enter a system prompt for your fine-tuned model and start fine-tuning. Should be in the language your
+                    data is in. Eg. "You are Neo a human who chats with another human. Answer in a natural, human-like
+                    way."</p>
+                <div class="mt-3">
+                    <label for="system-prompt">
+                        <i class="fas fa-terminal"></i>
+                        System Prompt:
+                    </label>
+                    <textarea id="system-prompt" placeholder="Enter a system prompt for your fine-tuned model..."
+                        maxlength="350">You are a helpful assistant.</textarea>
+                </div>
+
+                <div id="finetuneStats" class="status hidden"></div>
+
+                <label style="color: red;" id="fineTuneCost" class="status hidden">
+                    <i class="fas fa-info-circle"></i>
+                    Note: While fine-tuning should not cost more then the amount shown above, we can not guarantee it.
+                    Please set a hard limit in your OpenAI account.
+                </label>
+
+                <button id="startFineTuningBtn" disabled>
+                    <i class="fas fa-play-circle"></i>
+                    Start Fine-Tuning
+                </button>
+            </div>
+
+            <!-- Step 3: Track Progress Section -->
+            <div class="card">
+                <h3>
+                    <i class="fas fa-tasks"></i>
+                    <span class="ml-2">Step 3: Track Fine-Tuning Progress</span>
+                </h3>
+                <div id="jobStatusContainer" class="hidden">
+                    <p>
+                        <i class="fas fa-hashtag"></i>
+                        Job ID: <span id="jobId" class="ml-1"></span>
+                    </p>
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-bar-fill" id="progressBarFill" style="width: 0%"></div>
+                        </div>
+                        <p>
+                            <i class="fas fa-info-circle"></i>
+                            Status: <span id="jobStatus" class="ml-1"></span>
+                        </p>
+                    </div>
+                    <div id="jobDetails" class="mt-2"></div>
+                </div>
+
+                <div id="noActiveJobs">
+                    <div class="text-center mt-2 mb-2">
+                        <i class="fas fa-hourglass-start" style="font-size: 2rem; color: var(--text-color-light);"></i>
+                        <p class="mt-2">No active fine-tuning job. Start a new fine-tuning job to track progress.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Available Models Section -->
+            <div class="card">
+                <h3>
+                    <i class="fas fa-robot"></i>
+                    <span class="ml-2">Available Fine-Tuned Models</span>
+                </h3>
+                <div id="modelsList">
+                    <div class="loading" id="modelsLoading"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="/privacy-policy">Privacy Policy</a>
+                <a href="/formatting-guide">Formatting Guide</a>
+            </div>
+            <div class="footer-credits">
+                <p>FSCS (Full-Self-Cloning-System) &copy; 2025</p>
+                <p>Created by <a href="https://github.com/Neotastisch" target="_blank">Neotastisch</a></p>
+                <p><a href="https://github.com/Neotastisch/FSCS" target="_blank">View on GitHub</a></p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // DOM Elements
+        const dropArea = document.getElementById('dropArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const fileListLoading = document.getElementById('fileListLoading');
+        const uploadStatusContainer = document.getElementById('uploadStatusContainer');
+        const systemPrompt = document.getElementById('system-prompt');
+        const startFineTuningBtn = document.getElementById('startFineTuningBtn');
+        const finetuneStats = document.getElementById('finetuneStats');
+        const fineTuneCost = document.getElementById('fineTuneCost');
+        const jobStatusContainer = document.getElementById('jobStatusContainer');
+        const jobId = document.getElementById('jobId');
+        const jobStatus = document.getElementById('jobStatus');
+        const progressBarFill = document.getElementById('progressBarFill');
+        const jobDetails = document.getElementById('jobDetails');
+        const noActiveJobs = document.getElementById('noActiveJobs');
+        const modelsList = document.getElementById('modelsList');
+        const modelsLoading = document.getElementById('modelsLoading');
+        const deleteUserDataBtn = document.getElementById('deleteUserDataBtn');
+
+        // Variables
+        let selectedFiles = [];
+        let currentJobId = null;
+        let jobCheckInterval = null;
+        let errorShown = false;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Delay API calls until we confirm API key exists
+            const apiKey = getApiKeyFromCookie();
+            if (!apiKey) {
+                console.log("No API key found, showing modal first");
+                createApiKeyModal();
+            } else {
+                try {
+                    loadAvailableFiles();
+                    loadAvailableModels();
+                } catch (error) {
+                    console.error("Error during initialization:", error);
+                    if (error.message && error.message.includes('API key')) {
+                        showApiKeyError('Your API key appears to be invalid or has expired. Please enter a valid OpenAI API key.');
+                    }
+                }
+            }
+        });
+
+        // Add common error handling function to the page
+        async function handleApiError(error, defaultMessage = 'An error occurred') {
+            console.error(error);
+
+            if (error.message && error.message.includes('API key')) {
+                showApiKeyError('Your API key appears to be invalid or has expired. Please enter a valid OpenAI API key.');
+                errorShown = true;
+                return true; // Error was handled
+            }
+
+            return false; // Error was not handled specifically
+        }
+
+        // Function to handle API responses
+        async function handleApiResponse(response) {
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errorMessage = 'An error occurred with the request.';
+
+                try {
+                    // Try to parse as JSON
+                    const errorJson = JSON.parse(errorText);
+                    errorMessage = errorJson.message || errorJson.error || errorText;
+
+                    // Handle authentication errors
+                    if (response.status === 401) {
+                        clearApiKeyFromCookie();
+                        showApiKeyError('Your API key appears to be invalid or has expired. Please enter a valid OpenAI API key.');
+                        throw new Error('Authentication failed. Please enter a valid API key.');
+                    }
+                } catch (e) {
+                    // If parsing fails or during throw
+                    if (response.status === 401) {
+                        clearApiKeyFromCookie();
+                        showApiKeyError('Your API key appears to be invalid or has expired. Please enter a valid OpenAI API key.');
+                        throw new Error('Authentication failed. Please enter a valid API key.');
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                throw new Error(errorMessage);
+            }
+
+            return response;
+        }
+
+        // File Upload Event Listeners
+        dropArea.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        dropArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropArea.style.borderColor = 'var(--accent-color)';
+            dropArea.style.backgroundColor = 'rgba(76, 201, 240, 0.06)';
+        });
+
+        dropArea.addEventListener('dragleave', () => {
+            dropArea.style.borderColor = 'var(--border-color)';
+            dropArea.style.backgroundColor = 'rgba(0, 0, 0, 0.01)';
+        });
+
+        dropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropArea.style.borderColor = 'var(--border-color)';
+            dropArea.style.backgroundColor = 'rgba(0, 0, 0, 0.01)';
+            handleFiles(e.dataTransfer.files);
+        });
+
+        // Start Fine-Tuning Button Event
+        startFineTuningBtn.addEventListener('click', startFineTuning);
+
+        // Delete User Data Button Event
+        deleteUserDataBtn.addEventListener('click', async () => {
+            // Confirm with the user before deletion
+            if (!confirm("WARNING: This will permanently delete all your uploaded files and data. This action cannot be undone. Continue?")) {
+                return;
+            }
+
+            try {
+                // Add loading state to button
+                deleteUserDataBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+                deleteUserDataBtn.disabled = true;
+
+                // Add API key to the request
+                const requestOptions = addApiKeyToRequest({
+                    method: 'DELETE'
+                });
+
+                const response = await fetch('/fine-tuning/deleteUserData', requestOptions);
+
+                // Use the error handling function
+                await handleApiResponse(response);
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showStatus('success', 'Your data has been successfully deleted.');
+
+                    // Clear the file list UI
+                    fileList.innerHTML = `
+                        <div class="text-center mt-2 mb-2">
+                            <i class="fas fa-folder-open" style="font-size: 2rem; color: var(--text-color-light);"></i>
+                            <p class="mt-2">No files available. Upload files to start fine-tuning.</p>
+                        </div>
+                    `;
+
+                    // Reset fine-tune stats
+                    finetuneStats.className = 'status hidden';
+                    fineTuneCost.className = 'status hidden';
+
+                    // Disable start fine-tuning button
+                    startFineTuningBtn.disabled = true;
+                } else {
+                    showStatus('warning', data.message || 'No data was found to delete.');
+                }
+            } catch (error) {
+                console.error('Error deleting user data:', error);
+                showStatus('error', `Error deleting user data: ${error.message}`);
+            } finally {
+                // Reset button state
+                deleteUserDataBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Delete My Data';
+                deleteUserDataBtn.disabled = false;
+            }
+        });
+
+        // Load Available Files
+        async function loadAvailableFiles() {
+            try {
+                fileListLoading.style.display = 'flex';
+                // Add API key to the request
+                const requestOptions = addApiKeyToRequest();
+                const response = await fetch('/fine-tuning/checkFiles', requestOptions);
+
+                // Use the new error handling function
+                await handleApiResponse(response);
+                const data = await response.json();
+                renderFileList(data.files);
+
+                // Display user identifier if available
+                if (data.userId) {
+                    document.getElementById('userId').textContent = data.userId;
+                    document.getElementById('userBadge').style.display = 'block';
+                }
+
+                // Enable start fine-tuning button if files exist
+                if (data.files && data.files.length > 0) {
+                    startFineTuningBtn.disabled = false;
+
+                    // Update fine-tuning stats if files exist
+                    const totalLines = data.files.reduce((sum, file) => sum + file.lines, 0);
+                    updateFineTuningStats(data);
+                }
+            } catch (error) {
+                console.error('Error loading files:', error);
+
+                if (error.message && error.message.includes('API key')) {
+                    showApiKeyError('Your API key appears to be invalid or has expired. Please enter a valid OpenAI API key.');
+                } else {
+                    showStatus('error', `Error loading files: ${error.message}`);
+                }
+            } finally {
+                fileListLoading.style.display = 'none';
+            }
+        }
+
+        // Handle Files Upload
+        async function handleFiles(files) {
+            if (!files || files.length === 0) return;
+
+            const fileData = [];
+            uploadStatusContainer.className = 'status';
+            uploadStatusContainer.innerHTML = '<div class="loading"></div> Uploading files...';
+
+            for (const file of files) {
+                try {
+                    const reader = new FileReader();
+                    await new Promise((resolve, reject) => {
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    }).then(result => {
+                        fileData.push({
+                            name: file.name,
+                            data: result,
+                            type: file.type
+                        });
+                    });
+                } catch (error) {
+                    showStatus('error', `Error reading file ${file.name}: ${error.message}`);
+                    return;
+                }
+            }
+
+            try {
+                // Add API key to the request
+                // Collect clone names for each file
+                const cloneNames = {};
+                document.querySelectorAll('.clone-name').forEach(input => {
+                    const filename = input.getAttribute('data-filename');
+                    const cloneName = input.value.trim();
+                    if (cloneName) {
+                        cloneNames[filename] = cloneName;
+                    }
+                });
+
+                const requestOptions = addApiKeyToRequest({
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        files: fileData,
+                        cloneNames: cloneNames
+                    })
+                });
+
+                const response = await fetch('/fine-tuning/uploadFiles', requestOptions);
+
+                // Use the new error handling function
+                await handleApiResponse(response);
+
+                const data = await response.json();
+
+                if (!data.parsedMessages) {
+                    showStatus('error', 'Invalid format. Please check the Formatting Guide for more information.');
+                    return;
+                }
+
+                showStatus('success', 'Files uploaded. Parsed ' + data.parsedMessages + ' messages.');
+                renderFileList(data.files);
+
+                // Display user identifier if available
+                if (data.userId) {
+                    document.getElementById('userId').textContent = data.userId;
+                    document.getElementById('userBadge').style.display = 'block';
+                }
+
+                // Enable start fine-tuning button if files exist
+                if (data.files && data.files.length > 0) {
+                    startFineTuningBtn.disabled = false;
+                }
+
+                updateFineTuningStats(data);
+            } catch (error) {
+                console.error('Error uploading files:', error);
+
+                if (error.message && error.message.includes('API key')) {
+                    showApiKeyError('Your API key appears to be invalid. Please enter a valid OpenAI API key.');
+                } else {
+                    showStatus('error', `Error uploading files: ${error.message}`);
+                }
+            }
+        }
+
+        // Update Fine-Tuning Stats
+        async function updateFineTuningStats(data) {
+            try {
+                if (!data.parsedMessages || !data.fineTuneSettings || !data.cost) {
+                    console.error("Missing data for fine-tuning stats:", data);
+                    return;
+                }
+
+                finetuneStats.className = 'status';
+                fineTuneCost.className = 'status';
+                finetuneStats.innerHTML = `
+                    <h4 class="mb-1"><i class="fas fa-chart-bar"></i> Fine-Tuning Stats:</h4>
+                    <p><i class="fas fa-comments"></i> Total messages processed: ${data.parsedMessages}</p>
+                    <p><i class="fas fa-redo"></i> Estimated epochs: ${data.fineTuneSettings.n_epochs}</p>
+                    <p style="color:var(--error-color)"><i class="fas fa-dollar-sign"></i> Estimated cost: ${data.cost}$</p>
+                `;
+
+                // Display user identifier if available
+                if (data.userId) {
+                    document.getElementById('userId').textContent = data.userId;
+                    document.getElementById('userBadge').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error getting fine-tuning stats:', error);
+            }
+        }
+
+        // Render File List
+        function renderFileList(files) {
+            if (!files || files.length === 0) {
+                fileList.innerHTML = `
+                    <div class="text-center mt-2 mb-2">
+                        <i class="fas fa-folder-open" style="font-size: 2rem; color: var(--text-color-light);"></i>
+                        <p class="mt-2">No files available. Upload files to start fine-tuning.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const fileItems = files.map(file => `
+                <div class="file-item">
+                    <div class="file-name">
+                        <i class="fas fa-file-alt"></i>
+                        <span class="ml-2">${file.name}</span>
+                    </div>
+                    <div class="clone-name-input">
+                        <label>
+                            <i class="fas fa-clone"></i>
+                            Clone Name:
+                        </label>
+                        <input type="text" class="clone-name" data-filename="${file.name}"
+                               placeholder="Enter clone name"
+                               value="${file.existingCloneName || ''}">
+                    </div>
+                </div>
+            `).join('');
+
+            fileList.innerHTML = fileItems;
+        }
+
+        // Start Fine-Tuning
+        async function startFineTuning() {
+            try {
+                startFineTuningBtn.disabled = true;
+                startFineTuningBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting Fine-Tuning...';
+
+                // Collect clone names for each file
+                const cloneNames = {};
+                document.querySelectorAll('.clone-name').forEach(input => {
+                    const filename = input.getAttribute('data-filename');
+                    const cloneName = input.value.trim();
+                    if (cloneName) {
+                        cloneNames[filename] = cloneName;
+                    }
+                });
+
+                // Add API key to the request
+                const requestOptions = addApiKeyToRequest({
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        finetuningPrompt: systemPrompt.value,
+                        cloneNames: cloneNames
+                    })
+                });
+
+                const response = await fetch('/fine-tuning', requestOptions);
+
+                // Use the new error handling function
+                await handleApiResponse(response);
+
+                const data = await response.json();
+
+                if (data.id) {
+                    showStatus('success', 'Fine-tuning job started successfully!');
+                    currentJobId = data.id;
+                    jobId.textContent = currentJobId;
+
+                    // Show job status container and hide no active jobs message
+                    jobStatusContainer.classList.remove('hidden');
+                    noActiveJobs.style.display = 'none';
+
+                    // Start checking job status
+                    checkJobStatus();
+                    jobCheckInterval = setInterval(checkJobStatus, 10000); // Check every 10 seconds
+                } else {
+                    throw new Error('No job ID returned from the server');
+                }
+            } catch (error) {
+                console.error('Error starting fine-tuning:', error);
+
+                if (error.message && error.message.includes('API key')) {
+                    showApiKeyError('Your API key appears to be invalid. Please enter a valid OpenAI API key.');
+                } else {
+                    showStatus('error', `Error starting fine-tuning: ${error.message}`);
+                }
+
+                startFineTuningBtn.disabled = false;
+                startFineTuningBtn.innerHTML = '<i class="fas fa-play-circle"></i> Start Fine-Tuning';
+            }
+        }
+
+        // Check Job Status
+        async function checkJobStatus() {
+            if (!currentJobId) return;
+
+            try {
+                // Add API key to the request
+                const requestOptions = addApiKeyToRequest();
+                const response = await fetch(`/fine-tuning/${currentJobId}`, requestOptions);
+
+                // Use the new error handling function
+                await handleApiResponse(response);
+
+                const data = await response.json();
+
+                // Update status
+                jobStatus.textContent = data.status;
+
+                // Show loading animation for active jobs
+                const isWorking = data.status !== 'succeeded' && data.status !== 'failed';
+
+                // Update job status display with loading animation if still working
+                if (isWorking) {
+                    jobStatus.innerHTML = `
+                        <span>${data.status}</span>
+                        <span class="loading-spinner"><i class="fas fa-spinner fa-spin"></i></span>
+                    `;
+                } else {
+                    jobStatus.textContent = data.status;
+                }
+
+                // Update progress bar
+                let progress = 0;
+                if (data.status === 'succeeded') {
+                    progress = 100;
+                    clearInterval(jobCheckInterval);
+
+                    // Reload available models
+                    loadAvailableModels();
+                    startFineTuningBtn.disabled = false;
+                    startFineTuningBtn.innerHTML = '<i class="fas fa-plus-circle"></i> Start New Fine-Tuning';
+                } else if (data.status === 'failed') {
+                    clearInterval(jobCheckInterval);
+                    showStatus('error', `Fine-tuning job failed: ${data.error?.message || 'Unknown error'}`);
+                    startFineTuningBtn.disabled = false;
+                    startFineTuningBtn.innerHTML = '<i class="fas fa-redo"></i> Retry Fine-Tuning';
+                } else if (data.trained_tokens) {
+                    // Calculate progress based on trained tokens
+                    const totalTokens = data.hyperparameters?.n_epochs * data.training_file_split?.token_count || 1;
+                    progress = Math.min((data.trained_tokens / totalTokens) * 100, 99);
+                }
+
+                progressBarFill.style.width = `${progress}%`;
+
+                // Show job details
+                jobDetails.innerHTML = `
+                    <p><i class="fas fa-calendar-alt"></i> Created: ${new Date(data.created_at * 1000).toLocaleString()}</p>
+                    ${data.trained_tokens ? `<p><i class="fas fa-coins"></i> Trained tokens: ${data.trained_tokens}</p>` : ''}
+                    ${data.training_file ? `<p><i class="fas fa-file-code"></i> Training file: ${data.training_file}</p>` : ''}
+                    ${data.model ? `<p><i class="fas fa-cube"></i> Base model: ${data.model}</p>` : ''}
+                    ${data.fine_tuned_model ? `<p><i class="fas fa-robot"></i> Fine-tuned model: ${data.fine_tuned_model}</p>` : ''}
+                    <p><i class="fas fa-envelope"></i> <em>You will also receive an email notification when your model is ready.</em></p>
+                `;
+            } catch (error) {
+                console.error('Error checking job status:', error);
+            }
+        }
+
+        // Load Available Models
+        async function loadAvailableModels() {
+            try {
+                modelsLoading.style.display = 'flex';
+                // Add API key to the request
+                const requestOptions = addApiKeyToRequest();
+                const response = await fetch('/fine-tuning/models', requestOptions);
+
+                // Use the new error handling function
+                await handleApiResponse(response);
+
+                const models = await response.json();
+
+                if (!models || models.length === 0) {
+                    modelsList.innerHTML = `
+                        <div class="text-center mt-2 mb-2">
+                            <i class="fas fa-robot" style="font-size: 2rem; color: var(--text-color-light);"></i>
+                            <p class="mt-2">No fine-tuned models available yet.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const modelItems = models.map(model => `
+                    <div class="file-item">
+                        <div class="file-name">
+                            <i class="fas fa-robot"></i>
+                            <span class="ml-2">${model.id}</span>
+                        </div>
+                        <div>
+                            <i class="fas fa-calendar-alt"></i>
+                            <span class="ml-2">${new Date(model.created_at).toLocaleDateString()}</span>
+                        </div>
+                    </div>
+                `).join('');
+
+                modelsList.innerHTML = modelItems;
+            } catch (error) {
+                console.error('Error loading models:', error);
+                modelsList.innerHTML = `<p class="status error">Error loading models: ${error.message}</p>`;
+            } finally {
+                modelsLoading.style.display = 'none';
+            }
+        }
+
+        // Show Status Message
+        function showStatus(type, message) {
+            uploadStatusContainer.className = `status ${type}`;
+
+            // Add appropriate icon based on status type
+            let icon = '';
+            if (type === 'success') icon = '<i class="fas fa-check-circle"></i> ';
+            else if (type === 'error') icon = '<i class="fas fa-exclamation-circle"></i> ';
+            else if (type === 'warning') icon = '<i class="fas fa-exclamation-triangle"></i> ';
+
+            uploadStatusContainer.innerHTML = icon + message;
+        }
+    </script>
+</body>
+
+</html>

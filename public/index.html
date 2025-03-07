@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Fine-Tuning System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="apiKeyHandler.js"></script>
+</head>
+
+<body>
+    <script>
+        // Check for API key before allowing any content to be accessed
+        document.addEventListener('DOMContentLoaded', function () {
+            // Hide all content initially
+            document.querySelector('.container').style.display = 'none';
+
+            // Check for API key and show modal if needed
+            if (checkApiKeyAndShowModal()) {
+                // If API key exists, show content
+                document.querySelector('.container').style.display = 'block';
+            }
+
+            // Listen for API key provided event
+            document.addEventListener('apiKeyProvided', function () {
+                document.querySelector('.container').style.display = 'block';
+            });
+        });
+
+        // Track if an error modal is already shown
+        let errorShown = false;
+
+        // Add common error handling function to the page
+        async function handleApiError(error, defaultMessage = 'An error occurred') {
+            console.error(error);
+
+            if (error.message && error.message.includes('API key') && !errorShown) {
+                errorShown = true;
+                showApiKeyError('Your API key appears to be invalid or has expired. Please enter a valid OpenAI API key.');
+                return true; // Error was handled
+            }
+
+            return false; // Error was not handled specifically
+        }
+    </script>
+
+    <header>
+        <h1>FSCS</h1>
+        <p class="subtitle">Full-Self-Cloning-System</p>
+    </header>
+
+    <nav>
+        <a href="/" class="active">Home</a>
+        <a href="/train">Fine-Tuning</a>
+        <a href="/chat">Chat with Models</a>
+        <a href="/formatting-guide">Formatting Guide</a>
+        <a href="/privacy-policy">Privacy Policy</a>
+    </nav>
+
+    <div class="container">
+        <div class="hero">
+            <h2>Welcome to the FSCS</h2>
+            <p>The worlds first full self cloning System</p>
+        </div>
+
+        <div class="card">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <h3>Fine-Tune Models</h3>
+                <p>Upload your conversation data, configure settings, and fine-tune AI models with your own data.</p>
+                <p>Track the progress of your fine-tuning jobs and manage your custom models.</p>
+                <a href="/train">
+                    <button class="mt-2">
+                        <i class="fas fa-cogs"></i>
+                        Go to Fine-Tuning
+                    </button>
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <h3>Chat with Models</h3>
+                <p>Chat with your fine-tuned models or use the default OpenAI models.</p>
+                <p>Compare responses and test how well your models perform on specific tasks.</p>
+                <a href="/chat">
+                    <button class="mt-2">
+                        <i class="fas fa-comment-dots"></i>
+                        Go to Chat
+                    </button>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="/privacy-policy">Privacy Policy</a>
+                <a href="/formatting-guide">Formatting Guide</a>
+            </div>
+            <div class="footer-credits">
+                <p>FSCS (Full-Self-Cloning-System) &copy; 2025</p>
+                <p>Created by <a href="https://github.com/Neotastisch" target="_blank">Neotastisch</a></p>
+                <p><a href="https://github.com/Neotastisch/FSCS" target="_blank">View on GitHub</a></p>
+            </div>
+        </div>
+    </footer>
+</body>
+
+</html>

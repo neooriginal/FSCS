@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Formatting Guide - FSCS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="apiKeyHandler.js"></script>
+</head>
+
+<body>
+    <script>
+        // Check for API key before allowing any content to be accessed
+        document.addEventListener('DOMContentLoaded', function () {
+            // Hide all content initially
+            document.querySelector('.container').style.display = 'none';
+
+            // Check for API key and show modal if needed
+            if (checkApiKeyAndShowModal()) {
+                // If API key exists, show content
+                document.querySelector('.container').style.display = 'block';
+            }
+
+            // Listen for API key provided event
+            document.addEventListener('apiKeyProvided', function () {
+                document.querySelector('.container').style.display = 'block';
+            });
+        });
+
+        // Track if an error modal is already shown
+        let errorShown = false;
+
+        // Add common error handling function to the page
+        async function handleApiError(error, defaultMessage = 'An error occurred') {
+            console.error(error);
+
+            if (error.message && error.message.includes('API key') && !errorShown) {
+                errorShown = true;
+                showApiKeyError('Your API key appears to be invalid or has expired. Please enter a valid OpenAI API key.');
+                return true; // Error was handled
+            }
+
+            return false; // Error was not handled specifically
+        }
+    </script>
+
+    <header>
+        <h1>FSCS</h1>
+        <p class="subtitle">Full-Self-Cloning-System</p>
+    </header>
+
+    <nav>
+        <a href="/">Home</a>
+        <a href="/train">Fine-Tuning</a>
+        <a href="/chat">Chat with Models</a>
+        <a href="/formatting-guide" class="active">Formatting Guide</a>
+        <a href="/privacy-policy">Privacy Policy</a>
+    </nav>
+
+    <div class="container">
+        <div class="hero">
+            <h2>Chat Export Formatting Guide</h2>
+            <p>Learn how to export and format your chat data for fine-tuning</p>
+        </div>
+
+
+        <label style="color: red;">
+            <i class="fas fa-info-circle"></i>
+            We do not support group chats yet. Only use chats with two people.</a>.
+        </label>
+
+        <div class="card">
+            <div class="guide-section">
+                <h3><i class="fab fa-whatsapp"></i> WhatsApp Chat Export Guide</h3>
+                <div class="steps-container">
+                    <ol class="steps">
+                        <li>Open WhatsApp on your phone</li>
+                        <li>Tap the three dots in the top-right corner</li>
+                        <li>Select <strong>Settings</strong></li>
+                        <li>Tap on <strong>Chats</strong></li>
+                        <li>Select <strong>Chat History</strong></li>
+                        <li>Tap <strong>Chat export</strong></li>
+                        <li>Select the chat you want to export</li>
+                        <li>Choose <strong>Without Media</strong> option</li>
+                        <li>Share the exported file to your computer</li>
+                    </ol>
+                </div>
+                <div class="info-box">
+                    <p><i class="fas fa-info-circle"></i> The exported file will be in .txt format and will work with
+                        our system without any additional formatting.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="guide-section">
+                <h3><i class="fab fa-discord"></i> Discord Chat Export Guide</h3>
+                <div class="steps-container">
+                    <ol class="steps">
+                        <li>Use <a href="https://github.com/Tyrrrz/DiscordChatExporter"
+                                target="_blank">DiscordChatExporter</a> tool</li>
+                        <li>Follow the installation instructions from the GitHub repository</li>
+                        <li>Obtain your Discord authentication token (instructions available in the GitHub repository)
+                        </li>
+                        <li>Export your conversations as <strong>.txt</strong> format</li>
+                        <li>Upload the exported .txt file to our system</li>
+                    </ol>
+                </div>
+                <div class="info-box">
+                    <p><i class="fas fa-info-circle"></i> Make sure to follow the detailed guide on the <a
+                            href="https://github.com/Tyrrrz/DiscordChatExporter" target="_blank">DiscordChatExporter
+                            GitHub page</a> for specific instructions on token retrieval and export options.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="tips-section">
+                <h3><i class="fas fa-lightbulb"></i> Tips for Better Fine-Tuning Results</h3>
+                <ul>
+                    <li>Export longer conversations for more context and better results</li>
+                    <li>Include diverse topics in your training data</li>
+                    <li>Make sure the exported text accurately represents your communication style</li>
+                    <li>Review the exported data to ensure it doesn't contain sensitive information you don't want in
+                        your model</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="/privacy-policy">Privacy Policy</a>
+                <a href="/formatting-guide">Formatting Guide</a>
+            </div>
+            <div class="footer-credits">
+                <p>FSCS (Full-Self-Cloning-System) &copy; 2025</p>
+                <p>Created by <a href="https://github.com/Neotastisch" target="_blank">Neotastisch</a></p>
+                <p><a href="https://github.com/Neotastisch/FSCS" target="_blank">View on GitHub</a></p>
+            </div>
+        </div>
+    </footer>
+</body>
+
+</html>
