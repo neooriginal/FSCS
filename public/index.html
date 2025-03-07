@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Fine-Tuning System</title>
+    <title>FSCS - Full-Self-Cloning-System</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -12,27 +12,92 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="landing.css">
     <script src="apiKeyHandler.js"></script>
 </head>
 
 <body>
+    <!-- Landing Page for Non-Authenticated Users -->
+    <div class="landing-page">
+        <ul class="bg-animation">
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+        </ul>
+
+        <div class="landing-content">
+            <h1 class="landing-logo">FSCS</h1>
+            <p class="landing-subtitle">Full-Self-Cloning-System</p>
+            <h2 class="coming-soon">Coming Soon</h2>
+            <p class="landing-description">
+                The world's first full self cloning system. Train and fine-tune AI models with your own data to create
+                personalized AI experiences.
+            </p>
+            <button id="enter-app-btn" class="cta-button">
+                <i class="fas fa-sign-in-alt"></i> Enter with API Key
+            </button>
+
+            <div class="social-links">
+                <a href="https://github.com/Neotastisch/FSCS" target="_blank">
+                    <i class="fab fa-github"></i>
+                </a>
+                <a href="https://x.com/neo_original_x" target="_blank">
+                    <i class="fab fa-twitter"></i>
+                </a>
+                <a href="https://discord.gg/eUdJ5xdw8Q" target="_blank">
+                    <i class="fab fa-discord"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Check for API key before allowing any content to be accessed
         document.addEventListener('DOMContentLoaded', function () {
-            // Hide all content initially
+            // Hide all authenticated content initially
             document.querySelector('.container').style.display = 'none';
+            document.querySelector('header').style.display = 'none';
+            document.querySelector('nav').style.display = 'none';
+            document.querySelector('footer').style.display = 'none';
 
-            // Check for API key and show modal if needed
-            if (checkApiKeyAndShowModal()) {
-                // If API key exists, show content
-                document.querySelector('.container').style.display = 'block';
+            // Show landing page initially
+            document.querySelector('.landing-page').style.display = 'block';
+
+            // Enter app button should trigger API key modal
+            document.getElementById('enter-app-btn').addEventListener('click', function () {
+                createApiKeyModal();
+            });
+
+            // Check for API key without showing modal
+            if (getApiKeyFromCookie()) {
+                // If API key exists, show authenticated content and hide landing
+                showAuthenticatedContent();
             }
 
             // Listen for API key provided event
             document.addEventListener('apiKeyProvided', function () {
-                document.querySelector('.container').style.display = 'block';
+                showAuthenticatedContent();
             });
         });
+
+        // Function to show authenticated content
+        function showAuthenticatedContent() {
+            // Hide landing page
+            document.querySelector('.landing-page').style.display = 'none';
+
+            // Show authenticated content
+            document.querySelector('.container').style.display = 'block';
+            document.querySelector('header').style.display = 'block';
+            document.querySelector('nav').style.display = 'flex';
+            document.querySelector('footer').style.display = 'block';
+        }
 
         // Track if an error modal is already shown
         let errorShown = false;
