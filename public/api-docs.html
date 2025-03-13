@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat API Documentation</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .endpoint {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-left: 5px solid #007bff;
+        }
+
+        .method {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .get {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .post {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .url {
+            font-family: monospace;
+            font-size: 1.1em;
+        }
+
+        pre {
+            background-color: #272822;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        code {
+            font-family: monospace;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            margin-bottom: 10px;
+        }
+
+        .authentication {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AI Chat API Documentation</h1>
+            <p>Version 1.0.0</p>
+        </div>
+
+        <div class="authentication">
+            <h2>Authentication</h2>
+            <p>All API requests require authentication using an OpenAI API key. Include your API key in the request
+                headers:</p>
+            <pre><code>X-API-Key: your_openai_api_key</code></pre>
+        </div>
+
+        <h2>Endpoints</h2>
+
+        <div class="endpoint">
+            <h3>
+                <span class="method get">GET</span>
+                <span class="url">/api/status</span>
+            </h3>
+            <p>Check if the API is online and verify API key validity.</p>
+
+            <h4>Headers</h4>
+            <table>
+                <tr>
+                    <th>Name</th>
+                    <th>Required</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td>X-API-Key</td>
+                    <td>Yes</td>
+                    <td>Your OpenAI API key</td>
+                </tr>
+            </table>
+
+            <h4>Response</h4>
+            <pre><code>{
+  "status": "online",
+  "message": "API is functioning correctly",
+  "version": "1.0.0",
+  "authenticated": true,
+  "user_id": "9e6a36de"
+}</code></pre>
+        </div>
+
+        <div class="endpoint">
+            <h3>
+                <span class="method get">GET</span>
+                <span class="url">/api/models</span>
+            </h3>
+            <p>Get a list of available AI models (including fine-tuned ones).</p>
+
+            <h4>Headers</h4>
+            <table>
+                <tr>
+                    <th>Name</th>
+                    <th>Required</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td>X-API-Key</td>
+                    <td>Yes</td>
+                    <td>Your OpenAI API key</td>
+                </tr>
+            </table>
+
+            <h4>Response</h4>
+            <pre><code>{
+  "status": "success",
+  "models": [
+    {
+      "id": "chatbot-v1",
+      "jobId": "ftjob-abc123",
+      "createdAt": "2024-03-10T15:30:45Z"
+    },
+    {
+      "id": "gpt-4o",
+      "name": "GPT-4o",
+      "type": "base",
+      "description": "OpenAI's most advanced model"
+    },
+    {
+      "id": "gpt-4o-mini",
+      "name": "GPT-4o Mini",
+      "type": "base",
+      "description": "More efficient version of GPT-4o"
+    }
+  ]
+}</code></pre>
+        </div>
+
+        <div class="endpoint">
+            <h3>
+                <span class="method post">POST</span>
+                <span class="url">/api/chat</span>
+            </h3>
+            <p>Send a message to an AI model and get a response. If no model is specified, it will use the latest
+                available model.</p>
+
+            <h4>Headers</h4>
+            <table>
+                <tr>
+                    <th>Name</th>
+                    <th>Required</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td>X-API-Key</td>
+                    <td>Yes</td>
+                    <td>Your OpenAI API key</td>
+                </tr>
+                <tr>
+                    <td>Content-Type</td>
+                    <td>Yes</td>
+                    <td>application/json</td>
+                </tr>
+            </table>
+
+            <h4>Request Body</h4>
+            <table>
+                <tr>
+                    <th>Parameter</th>
+                    <th>Type</th>
+                    <th>Required</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td>message</td>
+                    <td>String</td>
+                    <td>Yes</td>
+                    <td>The message to send to the AI</td>
+                </tr>
+                <tr>
+                    <td>model</td>
+                    <td>String</td>
+                    <td>No</td>
+                    <td>Model ID to use. If not provided, uses the latest available model</td>
+                </tr>
+            </table>
+
+            <h4>Example Request</h4>
+            <pre><code>POST /api/chat
+Content-Type: application/json
+X-API-Key: your_openai_api_key
+
+{
+  "message": "Hello, how are you today?",
+  "model": "gpt-4o"
+}</code></pre>
+
+            <h4>Response</h4>
+            <pre><code>{
+  "status": "success",
+  "response": "I'm doing well, thank you for asking! How about you?",
+  "model": "gpt-4o"
+}</code></pre>
+        </div>
+
+        <h2>Integration Examples</h2>
+
+        <h3>JavaScript Example</h3>
+        <pre><code>// Example using fetch API
+async function chatWithAI(message, model = null) {
+  const apiKey = 'your_openai_api_key';
+  
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': apiKey
+    },
+    body: JSON.stringify({
+      message: message,
+      model: model
+    })
+  });
+  
+  const data = await response.json();
+  return data;
+}
+
+// Usage
+chatWithAI('Hello world')
+  .then(data => console.log(data.response))
+  .catch(error => console.error('Error:', error));</code></pre>
+
+        <h3>cURL Example</h3>
+        <pre><code>curl -X POST \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your_openai_api_key" \
+  -d '{"message": "Hello, how are you?"}' \
+  http://localhost:3000/api/chat</code></pre>
+
+        <h3>Python Example</h3>
+        <pre><code>import requests
+
+def chat_with_ai(message, model=None):
+    api_key = 'your_openai_api_key'
+    
+    url = 'http://localhost:3000/api/chat'
+    headers = {
+        'Content-Type': 'application/json',
+        'X-API-Key': api_key
+    }
+    
+    data = {
+        'message': message
+    }
+    
+    if model:
+        data['model'] = model
+    
+    response = requests.post(url, headers=headers, json=data)
+    return response.json()
+
+# Usage
+result = chat_with_ai('Hello world')
+print(result['response'])</code></pre>
+
+        <hr>
+        <p class="footer">© 2025 AI Chat System. All rights reserved.</p>
+    </div>
+</body>
+
+</html>

@@ -8,9 +8,9 @@ const AI = require('./askAI.js');
 dotenv.config();
 const util = require('./utils.js');
 const express = require('express');
+const apiRouter = require('./api.js');
 const app = express();
 const port = 3000;
-
 
 //temporary password auth for beta
 const basicAuth = require('express-basic-auth');
@@ -31,13 +31,14 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static('public'));
 
 // Define API routes that need to be protected
-const apiRoutes = [
+const protectedRoutes = [
   '/fine-tuning/checkFiles',
   '/fine-tuning/uploadFiles',
   '/fine-tuning/models',
   '/fine-tuning/askAI',
   '/fine-tuning',
-  '/fine-tuning/deleteUserData'
+  '/fine-tuning/deleteUserData',
+  '/api/'  // New API endpoints are also protected
 ];
 
 // Error handler middleware for API requests
@@ -65,7 +66,7 @@ function handleApiError(res, error, userId, endpoint) {
 app.param('job_id', (req, res, next, id) => {
   if (req.path.startsWith('/fine-tuning/')) {
     // This is a fine-tuning job route that requires authentication
-    apiRoutes.push(`/fine-tuning/${id}`);
+    protectedRoutes.push(`/fine-tuning/${id}`);
   }
   next();
 });
@@ -73,7 +74,7 @@ app.param('job_id', (req, res, next, id) => {
 // Middleware to extract API key from headers and validate ONLY for API routes
 app.use((req, res, next) => {
   // Skip API key validation for non-API routes (like html pages, css, etc)
-  if (!apiRoutes.some(route => req.path.startsWith(route))) {
+  if (!protectedRoutes.some(route => req.path.startsWith(route))) {
     return next();
   }
 
@@ -95,6 +96,14 @@ app.use((req, res, next) => {
 });
 
 util.loadFormatters();
+
+// Mount the API router under /api path
+app.use('/api', apiRouter);
+
+// Add a route for API documentation
+app.get("/api-docs", (req, res) => {
+  res.sendFile(__dirname + '/public/api-docs.html');
+});
 
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/public/index.html');
@@ -272,7 +281,6 @@ app.post("/fine-tuning/uploadFiles", async (req, res) => {
 
     let response = await finetuning.preParseFiles(userFolder, apiKey, cloneNames);
     response.files = processedFiles;
-    response.userId = userId;
     response.userId = userId;
     res.json(response);
   } catch (error) {
