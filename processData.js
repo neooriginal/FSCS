@@ -1,21 +1,71 @@
-
 const OPENAI_MODEL_USED = "gpt-4o-mini-2024-07-18"; // Model used for fine-tuning
 const axios = require('axios');
 const FormData = require('form-data');
 const { Readable } = require('stream');
 
+// Add these helper functions at the top level
+function cleanMessage(message) {
+    if (!message) return '';
+    
+    // Remove excessive whitespace and trim
+    let cleaned = message.replace(/\s+/g, ' ').trim();
+    
+    // Remove URLs as they often don't add training value
+    cleaned = cleaned.replace(/https?:\/\/[^\s]+/g, '');
+    
+    // Remove common noise patterns
+    cleaned = cleaned.replace(/[\u200B-\u200D\uFEFF]/g, ''); // Remove zero-width spaces
+    cleaned = cleaned.replace(/\[.*?\]/g, ''); // Remove square bracket content
+    cleaned = cleaned.replace(/\(edited\)/gi, ''); // Remove edit markers
+    
+    return cleaned.trim();
+}
+
+function isMessageValid(message) {
+    if (!message) return false;
+    
+    // Check if message is too short (less than 3 words)
+    if (message.split(/\s+/).length < 3) return false;
+    
+    // Check if message is too long (OpenAI has token limits)
+    if (message.length > 32000) return false;
+    
+    // Check if message has actual content (not just special characters)
+    if (!message.match(/[a-zA-Z0-9]/)) return false;
+    
+    return true;
+}
+
+function removeDuplicateMessages(messages) {
+    const seen = new Set();
+    return messages.filter(msg => {
+        const key = `${msg.sender}:${msg.message}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
 async function processToJSON(formattedJson, finetuningPrompt, cloneName) {
+    // Clean and deduplicate messages first
+    let cleanedMessages = formattedJson.map(msg => ({
+        ...msg,
+        message: cleanMessage(msg.message)
+    })).filter(msg => isMessageValid(msg.message));
+    
+    cleanedMessages = removeDuplicateMessages(cleanedMessages);
+
     // If multiple messages are sent by the same person, we need to merge them
     let mergedMessages = [];
     let currentSender = "";
     let currentMessage = "";
 
     // Add last message if it's not merged yet
-    formattedJson.forEach(message => {
+    cleanedMessages.forEach(message => {
         if (message.sender == currentSender) {
             currentMessage += "\n" + message.message;
         } else {
-            if (currentSender != "") {
+            if (currentSender != "" && isMessageValid(currentMessage)) {
                 mergedMessages.push({ sender: currentSender, message: currentMessage });
             }
             currentSender = message.sender;
@@ -24,7 +74,7 @@ async function processToJSON(formattedJson, finetuningPrompt, cloneName) {
     });
 
     // Add the final message that hasn't been added in the loop
-    if (currentSender !== "") {
+    if (currentSender !== "" && isMessageValid(currentMessage)) {
         mergedMessages.push({ sender: currentSender, message: currentMessage });
     }
 
@@ -48,8 +98,8 @@ async function processToJSON(formattedJson, finetuningPrompt, cloneName) {
             const userMessage = mergedMessages[userMessageIdx];
             const assistantMessage = mergedMessages[assistantMessageIdx];
 
-            // Make sure the content is not empty
-            if (userMessage.message && assistantMessage.message) {
+            // Additional quality check for the pair
+            if (isMessageValid(userMessage.message) && isMessageValid(assistantMessage.message)) {
                 finalizedJSON.push({
                     "messages": [
                         { "role": "system", "content": finetuningPrompt },
@@ -61,7 +111,6 @@ async function processToJSON(formattedJson, finetuningPrompt, cloneName) {
             lasti += 2;
         }
     }
-
 
     // Validate the final JSON structure
     if (finalizedJSON.length === 0) {

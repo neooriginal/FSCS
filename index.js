@@ -12,17 +12,6 @@ const apiRouter = require('./api.js');
 const app = express();
 const port = 3000;
 
-//temporary password auth for beta
-const basicAuth = require('express-basic-auth');
-if (process.env.betaPassword) {
-  app.use(basicAuth({
-    users: { 'beta': process.env.betaPassword }, // User: admin, Password: password123
-    challenge: true,  // This will trigger the built-in browser authentication popup
-    realm: 'Beta Testing' // Optional: This is the name that will show in the popup prompt
-  }));
-}
-//
-
 // Increase JSON payload size limit for file uploads
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -124,6 +113,24 @@ app.get("/privacy-policy", (req, res) => {
 app.get("/formatting-guide", (req, res) => {
   res.sendFile(__dirname + '/public/formatting-guide.html');
 });
+
+// Apply basic auth only to non-API routes
+if (process.env.betaPassword) {
+  app.use((req, res, next) => {
+    // Skip basic auth for API routes
+    if (req.path.startsWith('/api/') || protectedRoutes.some(route => req.path.startsWith(route))) {
+      return next();
+    }
+    
+    // Apply basic auth for all other routes
+    const basicAuth = require('express-basic-auth');
+    basicAuth({
+      users: { 'beta': process.env.betaPassword }, //iknowthisisabeta
+      challenge: true,
+      realm: 'Beta Testing'
+    })(req, res, next);
+  });
+}
 
 app.get("/fine-tuning/checkFiles", async (req, res) => {
   try {
