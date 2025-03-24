@@ -68,7 +68,7 @@ app.use((req, res, next) => {
   }
 
   // Headers are case-insensitive, so we check both variants
-  let apiKey = req.headers['x-openai-api-key'] || req.headers['X-OpenAI-API-Key'];
+  let apiKey = req.headers['x-openai-api-key'] || req.headers['X-OpenAI-API-Key'] || req.headers['x-api-key'];
 
   if (apiKey) {
     // Store in request for use in routes

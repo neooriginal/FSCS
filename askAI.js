@@ -105,7 +105,7 @@ ANALYSIS REQUIRED:
 Original message from the user: "${sanitizedMessage}"
 
 If the response is both contextually appropriate AND matches the style:
-Respond with exactly "[VALID]" or only with the improved response to the original message in the same style
+Respond with exactly "[VALID]" or with "[EMPTY, <reason>]" if the response is not appropriate
 
 If any improvements are needed:
 Provide a revised version that perfectly matches the original style while fixing the context.
@@ -113,6 +113,13 @@ The revision must maintain ALL style characteristics of the original response. S
 - length
 - word choice
 - speaking style
+- language
+
+Guidelines when you shall respond with [EMPTY, <reason>]:
+- if you do not have access to the information to answer (eg specific information or personal information or any information that is not available to you) 
+- if the AI does not need to answer it (eg. affirmation)
+- if the user is asking for a specific appointment or personal information
+
 
 The response you should evaluate:
 `
@@ -121,14 +128,11 @@ The response you should evaluate:
                     role: "user",
                     content: response,
                 },
-            ],
-            temperature: 0.8,
-            top_p: 0.9,
-            max_tokens: 500,
+            ]
         });
 
         let checkup_response = checkup_completion.choices[0].message.content;
-        return checkup_response === "[VALID]" ? response : "[]"+checkup_response;
+        return checkup_response === "[VALID]" ? response : "[Improved] "+checkup_response;
     } catch (error) {
         console.error("Error in AI request:", error);
 

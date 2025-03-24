@@ -37,7 +37,16 @@ function handleApiError(res, error, userId, endpoint) {
  */
 router.get('/status', (req, res) => {
   try {
-    const apiKey = req.openaiApiKey;
+    const apiKey = req.headers['x-api-key'];
+    
+    if (!apiKey) {
+      return res.status(401).json({
+        status: 'error',
+        code: 'missing_api_key',
+        message: 'API key is required in X-API-Key header'
+      });
+    }
+    
     const userId = util.hashApiKey(apiKey).substring(0, 8);
 
     res.json({
@@ -62,7 +71,16 @@ router.get('/status', (req, res) => {
  */
 router.get('/models', async (req, res) => {
   try {
-    const apiKey = req.openaiApiKey;
+    const apiKey = req.headers['x-api-key'];
+    
+    if (!apiKey) {
+      return res.status(401).json({
+        status: 'error',
+        code: 'missing_api_key',
+        message: 'API key is required in X-API-Key header'
+      });
+    }
+    
     const userId = util.hashApiKey(apiKey).substring(0, 8);
 
     // Get list of fine-tuned models
@@ -71,18 +89,10 @@ router.get('/models', async (req, res) => {
     // Add default OpenAI models
     const models = [
       ...fineTunedModelsResponse.models,
-      {
-        id: "gpt-4o",
-        name: "GPT-4o",
-        type: "base",
-        description: "OpenAI's most advanced model"
-      },
-      {
-        id: "gpt-4o-mini",
-        name: "GPT-4o Mini",
-        type: "base",
-        description: "More efficient version of GPT-4o"
-      }
+      { id: "gpt-4o", name: "GPT-4o" },
+      { id: "gpt-4-turbo", name: "GPT-4 Turbo" },
+      { id: "gpt-4", name: "GPT-4" },
+      { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo" },
     ];
 
     res.json({
@@ -90,7 +100,9 @@ router.get('/models', async (req, res) => {
       models: models
     });
   } catch (error) {
-    handleApiError(res, error, util.hashApiKey(req.openaiApiKey).substring(0, 8), 'GET /api/models');
+    const apiKey = req.headers['x-api-key'];
+    const userId = apiKey ? util.hashApiKey(apiKey).substring(0, 8) : null;
+    handleApiError(res, error, userId, 'GET /api/models');
   }
 });
 
@@ -107,7 +119,16 @@ router.get('/models', async (req, res) => {
  */
 router.post('/chat', async (req, res) => {
   try {
-    const apiKey = req.openaiApiKey;
+    const apiKey = req.headers['x-api-key'];
+    
+    if (!apiKey) {
+      return res.status(401).json({
+        status: 'error',
+        code: 'missing_api_key',
+        message: 'API key is required in X-API-Key header'
+      });
+    }
+    
     const userId = util.hashApiKey(apiKey).substring(0, 8);
     const { message } = req.body;
 
@@ -152,7 +173,9 @@ router.post('/chat', async (req, res) => {
       model: modelToUse
     });
   } catch (error) {
-    handleApiError(res, error, util.hashApiKey(req.openaiApiKey).substring(0, 8), 'POST /api/chat');
+    const apiKey = req.headers['x-api-key'];
+    const userId = apiKey ? util.hashApiKey(apiKey).substring(0, 8) : null;
+    handleApiError(res, error, userId, 'POST /api/chat');
   }
 });
 
