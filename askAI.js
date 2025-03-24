@@ -120,6 +120,8 @@ Guidelines when you shall respond with [EMPTY, <reason>]:
 - if the AI does not need to answer it (eg. affirmation)
 - if the user is asking for a specific appointment or personal information
 
+NOTE: YOU SHALL ALWAYS REPLY TO REGULAR CHIT-CHAT MESSAGES. (eg. "What's up?" "How are you?" "What's your name?" etc)
+
 
 The response you should evaluate:
 `
