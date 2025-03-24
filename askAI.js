@@ -134,7 +134,7 @@ The response you should evaluate:
         });
 
         let checkup_response = checkup_completion.choices[0].message.content;
-        return checkup_response === "[VALID]" ? response : "[Improved] "+checkup_response;
+        return checkup_response === "[VALID]" ? response : checkup_response;
     } catch (error) {
         console.error("Error in AI request:", error);
 
