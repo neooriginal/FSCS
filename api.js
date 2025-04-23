@@ -161,7 +161,50 @@ router.post('/chat', async (req, res) => {
     const history = userManager.getChatHistory(apiKey, modelToUse);
 
     // Call AI with user's history
-    const response = await AI.askAI(message, modelToUse, history, apiKey);
+    let response = await AI.askAI(message, modelToUse, history, apiKey);
+
+    // Extra validation to ensure no generic AI-like responses
+    const aiPatterns = [
+      "as an ai", "i'm an ai", "ai assistant", "artificial intelligence",
+      "i don't have personal", "i don't have the ability",
+      "i'm not able to", "i cannot access", "i don't have access",
+      "i'd be happy to help", "i'd be happy to assist",
+      "is there anything else", "how can i assist", "how else can i help",
+      "my training", "my programming", "my knowledge", "my capabilities",
+      "i'm designed to", "i was trained to", "i am not able to"
+    ];
+
+    // Check if response contains AI patterns
+    const responseLower = response.toLowerCase();
+    const hasAIPattern = aiPatterns.some(pattern => responseLower.includes(pattern));
+
+    if (hasAIPattern) {
+      // Regenerate response via stronger enforcement
+      const OpenAI = require('openai');
+      const openai = new OpenAI({ apiKey });
+
+      const strictSystemPrompt = `You MUST speak as the actual human user would speak. 
+NEVER use AI-like phrases or tones.
+NEVER say "As an AI" or acknowledge being an AI.
+NEVER apologize for limitations.
+NEVER use customer service phrases like "How can I help you" or "I'd be happy to assist".
+Respond EXACTLY as the human user would with their exact style, tone, and attitude.
+Your response must be 100% indistinguishable from a natural human conversation.`;
+
+      const strictResponse = await openai.chat.completions.create({
+        model: modelToUse,
+        messages: [
+          { role: "system", content: strictSystemPrompt },
+          ...history,
+          { role: "user", content: message }
+        ],
+        temperature: 0.75,
+        top_p: 0.95,
+        max_tokens: 500,
+      });
+
+      response = strictResponse.choices[0].message.content;
+    }
 
     // Update user's history with new messages
     userManager.addMessageToHistory(apiKey, modelToUse, { role: "user", content: message });
