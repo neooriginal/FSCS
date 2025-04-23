@@ -52,11 +52,15 @@ function loadFormatters() {
 
 // Get list of fine-tuned models from OpenAI
 async function getOpenAIFineTunedModels(apiKey) {
-    // API key validation is handled separately in the error handling
+    // Validate API key
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
+        throw new Error('Invalid API key provided');
+    }
 
     const OpenAI = require('openai');
     const openai = new OpenAI({
-        apiKey: apiKey
+        apiKey: apiKey,
+        timeout: 30000 // 30 second timeout to prevent hanging requests
     });
 
     try {
@@ -64,11 +68,15 @@ async function getOpenAIFineTunedModels(apiKey) {
             limit: 100
         });
 
+        if (!response || !response.data) {
+            console.warn('Unexpected response format from OpenAI API:', response);
+            return { models: [], userId: hashApiKey(apiKey) };
+        }
+
         // Filter out only completed jobs
         let completedJobs = response.data.filter(job => job.status === 'succeeded');
 
-        completedJobs = completedJobs.filter(job => job.fine_tuned_model.includes("chatbot-"));
-
+        completedJobs = completedJobs.filter(job => job.fine_tuned_model && job.fine_tuned_model.includes("chatbot-"));
 
         // Map to get just the fine-tuned model IDs
         const models = completedJobs.map(job => ({
@@ -85,8 +93,24 @@ async function getOpenAIFineTunedModels(apiKey) {
             userId
         };
     } catch (error) {
-        console.error('Error getting fine-tuned models:', error.message);
-        throw error;
+        // Enhanced error logging with specific details
+        console.error('Error getting fine-tuned models:', {
+            message: error.message,
+            status: error.status,
+            type: error.type,
+            code: error.code
+        });
+        
+        // Rethrow with a more informative message
+        if (error.status === 401) {
+            throw new Error('API key authentication failed. Please check your API key.');
+        } else if (error.status === 429) {
+            throw new Error('OpenAI rate limit exceeded. Please try again later.');
+        } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
+            throw new Error('Connection to OpenAI timed out. Please check your network connection.');
+        } else {
+            throw error;
+        }
     }
 }
 

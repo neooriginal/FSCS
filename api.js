@@ -4,9 +4,10 @@ const AI = require('./askAI.js');
 const util = require('./utils.js');
 const userManager = require('./userManager');
 
-// Error handler middleware for API requests
+// Enhanced error handler middleware for API requests
 function handleApiError(res, error, userId, endpoint) {
   console.error(`Error in ${endpoint} for user ${userId || 'unknown'}: ${error.message}`);
+  console.error(error.stack); // Log stack trace for better debugging
 
   // Check for API key related errors
   if (error.message && error.message.toLowerCase().includes('api key')) {
@@ -17,12 +18,76 @@ function handleApiError(res, error, userId, endpoint) {
     });
   }
 
+  // Check for rate limit errors
+  if (error.message && error.message.toLowerCase().includes('rate limit')) {
+    return res.status(429).json({
+      status: 'error',
+      code: 'rate_limit_exceeded',
+      message: 'Rate limit exceeded. Please try again later.',
+    });
+  }
+
+  // Check for timeout errors
+  if (error.message && (error.message.includes('timeout') || error.message.includes('ETIMEDOUT'))) {
+    return res.status(504).json({
+      status: 'error',
+      code: 'request_timeout',
+      message: 'Request timed out. Please try again.',
+    });
+  }
+
   // Return a standard error format with status code
   return res.status(500).json({
     status: 'error',
     code: 'server_error',
     message: error.message,
   });
+}
+
+// Helper function to validate API key
+function validateApiKey(req, res) {
+  const apiKey = req.headers['x-api-key'];
+  
+  if (!apiKey) {
+    res.status(401).json({
+      status: 'error',
+      code: 'missing_api_key',
+      message: 'API key is required in X-API-Key header'
+    });
+    return null;
+  }
+  
+  return apiKey;
+}
+
+// Add retry logic for OpenAI API calls
+async function withRetry(fn, maxRetries = 3, delay = 1000) {
+  let lastError;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      
+      // Only retry on network errors, timeouts, or rate limits
+      const shouldRetry = 
+        error.message.includes('network') || 
+        error.message.includes('timeout') || 
+        error.message.includes('rate limit') ||
+        error.message.includes('ETIMEDOUT') ||
+        error.code === 'ECONNRESET';
+      
+      if (!shouldRetry) throw error;
+      
+      // Wait before retrying (with exponential backoff)
+      const retryDelay = delay * Math.pow(2, attempt);
+      console.log(`Retrying API call (attempt ${attempt + 1}/${maxRetries}) after ${retryDelay}ms`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
+  }
+  
+  throw lastError;
 }
 
 /**
@@ -37,15 +102,8 @@ function handleApiError(res, error, userId, endpoint) {
  */
 router.get('/status', (req, res) => {
   try {
-    const apiKey = req.headers['x-api-key'];
-    
-    if (!apiKey) {
-      return res.status(401).json({
-        status: 'error',
-        code: 'missing_api_key',
-        message: 'API key is required in X-API-Key header'
-      });
-    }
+    const apiKey = validateApiKey(req, res);
+    if (!apiKey) return;
     
     const userId = util.hashApiKey(apiKey).substring(0, 8);
 
@@ -71,20 +129,15 @@ router.get('/status', (req, res) => {
  */
 router.get('/models', async (req, res) => {
   try {
-    const apiKey = req.headers['x-api-key'];
-    
-    if (!apiKey) {
-      return res.status(401).json({
-        status: 'error',
-        code: 'missing_api_key',
-        message: 'API key is required in X-API-Key header'
-      });
-    }
+    const apiKey = validateApiKey(req, res);
+    if (!apiKey) return;
     
     const userId = util.hashApiKey(apiKey).substring(0, 8);
 
-    // Get list of fine-tuned models
-    const fineTunedModelsResponse = await util.getOpenAIFineTunedModels(apiKey);
+    // Get list of fine-tuned models with retry logic
+    const fineTunedModelsResponse = await withRetry(() => 
+      util.getOpenAIFineTunedModels(apiKey)
+    );
 
     // Add default OpenAI models
     const models = [
@@ -119,15 +172,8 @@ router.get('/models', async (req, res) => {
  */
 router.post('/chat', async (req, res) => {
   try {
-    const apiKey = req.headers['x-api-key'];
-    
-    if (!apiKey) {
-      return res.status(401).json({
-        status: 'error',
-        code: 'missing_api_key',
-        message: 'API key is required in X-API-Key header'
-      });
-    }
+    const apiKey = validateApiKey(req, res);
+    if (!apiKey) return;
     
     const userId = util.hashApiKey(apiKey).substring(0, 8);
     const { message } = req.body;
@@ -140,12 +186,31 @@ router.post('/chat', async (req, res) => {
       });
     }
 
+    if (typeof message !== 'string') {
+      return res.status(400).json({
+        status: 'error',
+        code: 'invalid_message_format',
+        message: 'Message must be a string'
+      });
+    }
+
+    // Set a reasonable message length limit
+    if (message.length > 10000) {
+      return res.status(400).json({
+        status: 'error',
+        code: 'message_too_long',
+        message: 'Message exceeds maximum length (10000 characters)'
+      });
+    }
+
     // Determine which model to use (provided or get the latest)
     let modelToUse = req.body.model;
 
     if (!modelToUse) {
       // Get models and find the latest one
-      const { models } = await util.getOpenAIFineTunedModels(apiKey);
+      const { models } = await withRetry(() => 
+        util.getOpenAIFineTunedModels(apiKey)
+      );
 
       if (models && models.length > 0) {
         // Sort by creation date (newest first)
@@ -160,8 +225,10 @@ router.post('/chat', async (req, res) => {
     // Get user-specific chat history for this model
     const history = userManager.getChatHistory(apiKey, modelToUse);
 
-    // Call AI with user's history
-    let response = await AI.askAI(message, modelToUse, history, apiKey);
+    // Call AI with user's history, with retry logic
+    let response = await withRetry(() => 
+      AI.askAI(message, modelToUse, history, apiKey)
+    );
 
     // Extra validation to ensure no generic AI-like responses
     const aiPatterns = [
@@ -191,17 +258,20 @@ NEVER use customer service phrases like "How can I help you" or "I'd be happy to
 Respond EXACTLY as the human user would with their exact style, tone, and attitude.
 Your response must be 100% indistinguishable from a natural human conversation.`;
 
-      const strictResponse = await openai.chat.completions.create({
-        model: modelToUse,
-        messages: [
-          { role: "system", content: strictSystemPrompt },
-          ...history,
-          { role: "user", content: message }
-        ],
-        temperature: 0.75,
-        top_p: 0.95,
-        max_tokens: 500,
-      });
+      // Regenerate with retry logic
+      const strictResponse = await withRetry(() =>
+        openai.chat.completions.create({
+          model: modelToUse,
+          messages: [
+            { role: "system", content: strictSystemPrompt },
+            ...history,
+            { role: "user", content: message }
+          ],
+          temperature: 0.75,
+          top_p: 0.95,
+          max_tokens: 500,
+        })
+      );
 
       response = strictResponse.choices[0].message.content;
     }

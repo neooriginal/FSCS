@@ -71,8 +71,21 @@ app.use((req, res, next) => {
   let apiKey = req.headers['x-openai-api-key'] || req.headers['X-OpenAI-API-Key'] || req.headers['x-api-key'];
 
   if (apiKey) {
-    // Store in request for use in routes
+    // Clean up API key if it has comma-separated values
     if (apiKey.includes(", ")) apiKey = apiKey.split(", ")[0];
+    
+    // Trim any whitespace from the API key
+    apiKey = apiKey.trim();
+    
+    // Validate API key format (simple validation)
+    if (!apiKey.startsWith('sk-') && !process.env.NODE_ENV === 'development') {
+      return res.status(401).json({
+        error: 'Invalid API key format',
+        message: 'The API key provided has an invalid format.'
+      });
+    }
+    
+    // Store in request for use in routes
     req.openaiApiKey = apiKey;
     next();
   } else {
@@ -82,6 +95,20 @@ app.use((req, res, next) => {
       message: 'Please enter your OpenAI API key to use this feature'
     });
   }
+});
+
+// Add request timeout middleware for API routes
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    // Set a 30-second timeout for all API requests
+    req.setTimeout(30000, () => {
+      res.status(504).json({
+        error: 'Request timeout',
+        message: 'The request took too long to process. Please try again.'
+      });
+    });
+  }
+  next();
 });
 
 util.loadFormatters();
