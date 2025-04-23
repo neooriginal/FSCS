@@ -104,6 +104,7 @@ ANALYSIS REQUIRED:
    - Punctuation usage
    - Emoji/emoticon usage (if any)
 
+
 Original message from the user: "${sanitizedMessage}"
 
 IMMEDIATE FAIL CONDITIONS (respond with "[INVALID]"):
@@ -132,6 +133,8 @@ Guidelines when you shall respond with [EMPTY, <reason>]:
 - if the user is asking for a specific appointment or personal information
 
 NOTE: YOU SHALL ALWAYS REPLY TO REGULAR CHIT-CHAT MESSAGES but responses must NEVER sound like they're from an AI assistant.
+
+ONLY CHANGE THE MESSAGE IF YOU HAVE TO AND IT ABSOLUTELY DOESNT FIT.
 
 The response you should evaluate:
 `
@@ -228,4 +231,266 @@ Respond exactly as the human user would, with their tone, style and personality.
     }
 }
 
-module.exports = { askAI };
+/**
+ * Send a user message to an AI model with a custom system prompt
+ * @param {string} userMessage - The message from the user
+ * @param {string} model - The model to use (can be standard or fine-tuned)
+ * @param {Array} context - The conversation history provided by the caller
+ * @param {string} apiKey - User's OpenAI API key
+ * @param {string} customSystemPrompt - Custom system prompt to use instead of the default
+ * @returns {Promise<string>} The AI's response or empty string if no response is appropriate
+ */
+async function askAIWithSystemPrompt(userMessage, model, context, apiKey, customSystemPrompt) {
+    if (!apiKey) {
+        throw new Error(ERROR_MESSAGES.INVALID_API_KEY);
+    }
+
+    const sanitizedMessage = sanitizeInput(userMessage);
+    if (!sanitizedMessage) {
+        throw new Error(ERROR_MESSAGES.INVALID_INPUT);
+    }
+
+    const openai = new OpenAI({
+        apiKey: apiKey,
+        timeout: 30000 // 30 second timeout
+    });
+
+    try {
+        // Use the provided custom system prompt
+        const messages = [
+            { role: "system", content: customSystemPrompt },
+            ...context,
+            { role: "user", content: sanitizedMessage }
+        ];
+
+        const completion = await openai.chat.completions.create({
+            model: model,
+            messages: messages,
+            temperature: 0.5, // Lower temperature for more conservative responses
+            top_p: 0.85,
+            max_tokens: 500,
+        });
+
+        let response = completion.choices[0].message.content;
+        
+        // Special handling for group messages and conservative responses
+        if (customSystemPrompt.includes("DON'T RESPOND AT ALL") || 
+            customSystemPrompt.includes("REMAIN SILENT") ||
+            customSystemPrompt.includes("IF UNSURE")) {
+                
+            // Validate if the response should be empty
+            const validationMessages = [
+                { 
+                    role: "system", 
+                    content: `You are a conservative response validator that errs on the side of not responding.
+                    
+Analyze the following USER MESSAGE and AI RESPONSE in a group chat context.
+
+IMMEDIATE RETURN EMPTY RESPONSE CONDITIONS:
+1. If the user message is casual chat that doesn't require a response
+2. If the response contains ANY fabricated details, especially:
+   - Appointments, meetings, events
+   - Personal details about the user
+   - Specific times, dates, or locations
+   - Medical, financial, or professional advice
+3. If the user message isn't clearly directed at the AI
+4. If the response creates plans or commitments
+5. If a correct response would require specific personal knowledge
+6. If the message is ambiguous and could be meant for someone else
+
+Only allow responses that are:
+1. Factual and don't make assumptions
+2. Direct answers to clear questions
+3. Free of made-up details or AI-like phrasing
+4. Clearly warranted by the context
+
+Use these criteria to decide if the response should be KEPT or BLOCKED.
+Respond ONLY with "[KEEP]" or "[BLOCK]" followed by a brief reason.`
+                },
+                { 
+                    role: "user", 
+                    content: `USER MESSAGE: "${sanitizedMessage}"
+                    
+AI RESPONSE: "${response}"
+
+Should this response be kept or blocked?`
+                }
+            ];
+            
+            const validationCompletion = await openai.chat.completions.create({
+                model: doubleCheckModel,
+                messages: validationMessages,
+                temperature: 0.3,
+                max_tokens: 100
+            });
+            
+            const validationResult = validationCompletion.choices[0].message.content;
+            
+            // If validation says to block, return empty response
+            if (validationResult.includes("[BLOCK]")) {
+                return "";
+            }
+        }
+        
+        // Check for explicitly empty responses
+        if (response.toLowerCase().includes("[empty]") || 
+            response.toLowerCase().includes("no response") ||
+            response.toLowerCase().includes("i should not respond")) {
+            return "";
+        }
+        
+        // Second request to validate the response and ensure style matching
+        const checkup_completion = await openai.chat.completions.create({
+            model: doubleCheckModel,
+            messages: [
+                ...context,
+                {
+                    role: "system", content: `You are a response validator focusing on eliminating ANY sign of AI-generated text.
+
+ANALYSIS REQUIRED:
+1. Review the response for ANY signs of AI-generated text patterns
+2. Verify the response matches user style:
+   - Capitalization patterns
+   - Message length
+   - Vocabulary complexity
+   - Informal/formal tone
+   - Punctuation usage
+   - Emoji/emoticon usage (if any)
+
+
+Original message from the user: "${sanitizedMessage}"
+
+IMMEDIATE FAIL CONDITIONS (respond with "[INVALID]"):
+- Response includes ANY variation of "I'm an AI" or "As an AI"
+- Response includes ANY disclaimers about AI limitations
+- Response includes ANY apologetic language about capabilities
+- Response uses generic helper phrases like "I'd be happy to help" or "Is there anything else I can assist with?"
+- Response sounds like customer service or a digital assistant
+- Response is overly formal or uses template-like language
+- Response has ANY indication it was generated by an AI system
+
+If the response passes all tests and is perfectly indistinguishable from human text:
+Respond with exactly "[VALID]" or with "[EMPTY, <reason>]" if the response is not appropriate
+
+If improvements are needed:
+Provide a completely rewritten response that matches user style while removing ANY AI patterns.
+The revision should sound 100% human with:
+- Natural language patterns
+- Same length and complexity as original
+- User-like speech patterns
+- NO AI-like phrasing whatsoever
+
+Guidelines when you shall respond with [EMPTY, <reason>]:
+- if you do not have access to the information to answer (eg specific information or personal information or any information that is not available to you) 
+- if the AI does not need to answer it (eg. affirmation)
+- if the user is asking for a specific appointment or personal information
+
+NOTE: YOU SHALL ALWAYS REPLY TO REGULAR CHIT-CHAT MESSAGES but responses must NEVER sound like they're from an AI assistant.
+
+ONLY CHANGE THE MESSAGE IF YOU HAVE TO AND IT ABSOLUTELY DOESNT FIT.
+
+The response you should evaluate:
+`
+                },
+                {
+                    role: "user",
+                    content: response,
+                },
+            ]
+        });
+
+        let checkup_response = checkup_completion.choices[0].message.content;
+        
+        // Handle [EMPTY] responses
+        if (checkup_response.startsWith("[EMPTY")) {
+            return "";
+        }
+        
+        // Process other validation responses similar to the main askAI function
+        if (checkup_response === "[VALID]") {
+            // Check for common AI phrases that might have slipped through
+            const aiPhrases = [
+                "as an ai", "i'm an ai", "ai assistant", "ai language model", 
+                "i don't have personal", "i don't have the ability", 
+                "i'd be happy to help", "i'd be happy to assist",
+                "is there anything else", "how else can i assist",
+                "i cannot", "i don't have access", "i'm not able to",
+                "my programming", "my knowledge", "my capabilities",
+                "i'm designed to", "i was trained to"
+            ];
+            
+            const responseLower = response.toLowerCase();
+            
+            if (aiPhrases.some(phrase => responseLower.includes(phrase))) {
+                // If AI phrases detected, force regeneration with stricter control
+                const strict_completion = await openai.chat.completions.create({
+                    model: model,
+                    messages: [
+                        { 
+                            role: "system", 
+                            content: `${customSystemPrompt}
+                            
+CRITICAL: Your response MUST sound like a normal human. NEVER use ANY phrases that sound like an AI assistant.
+NEVER use phrases like "I'm happy to help" or "I don't have personal opinions" or "As an AI".
+Respond exactly as the human user would, with their tone, style and personality.`
+                        },
+                        ...context,
+                        { role: "user", content: sanitizedMessage }
+                    ],
+                    temperature: 0.5,
+                    top_p: 0.9,
+                    max_tokens: 500,
+                });
+                
+                return strict_completion.choices[0].message.content;
+            }
+            
+            return response;
+        } else if (checkup_response.startsWith("[INVALID]")) {
+            // Use the same regeneration approach as in askAI
+            // But with the custom system prompt
+            const regenerate_completion = await openai.chat.completions.create({
+                model: model,
+                messages: [
+                    { 
+                        role: "system", 
+                        content: `${customSystemPrompt}
+                        
+CRITICAL: Your response MUST sound like a normal human. NEVER use ANY phrases that sound like an AI assistant.
+Respond exactly as a real person would, keeping it natural and casual.`
+                    },
+                    ...context,
+                    { role: "user", content: sanitizedMessage }
+                ],
+                temperature: 0.5,
+                top_p: 0.9,
+                max_tokens: 500,
+            });
+            
+            return regenerate_completion.choices[0].message.content;
+        } else {
+            // Use improved response if provided
+            return checkup_response;
+        }
+    } catch (error) {
+        console.error("Error in askAIWithSystemPrompt:", error);
+        
+        // Enhanced error handling
+        if (error.response?.status === 401) {
+            throw new Error(ERROR_MESSAGES.INVALID_API_KEY);
+        } else if (error.response?.status === 429) {
+            throw new Error(ERROR_MESSAGES.RATE_LIMIT);
+        } else if (error.response?.status === 404) {
+            throw new Error(ERROR_MESSAGES.MODEL_NOT_FOUND);
+        } else if (error.message.includes('timeout') || error.code === 'ETIMEDOUT') {
+            throw new Error('The request timed out. Please try again.');
+        } else {
+            throw error;
+        }
+    }
+}
+
+module.exports = {
+    askAI,
+    askAIWithSystemPrompt
+};
