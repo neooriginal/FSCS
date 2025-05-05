@@ -52,7 +52,7 @@ Upload and process conversation data from multiple messaging platforms:
 
 ```bash
 # Clone the repository
-git clone https://github.com/neo_original/FSCS.git
+git clone https://github.com/neooriginal/FSCS.git
 
 # Navigate to the project directory
 cd FSCS
